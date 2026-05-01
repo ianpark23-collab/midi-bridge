@@ -147,10 +147,9 @@ class MidiBridgeService : Service() {
         if (mgr.hasPermission(device)) {
             connectDevice(device)
         } else {
-            val pi = PendingIntent.getBroadcast(
-                this, 0, Intent(ACTION_USB_PERMISSION),
-                PendingIntent.FLAG_IMMUTABLE
-            )
+            val piFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                PendingIntent.FLAG_MUTABLE else 0
+            val pi = PendingIntent.getBroadcast(this, 0, Intent(ACTION_USB_PERMISSION), piFlags)
             mgr.requestPermission(device, pi)
         }
     }
