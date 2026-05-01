@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#050508"
+    android:padding="48dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="MIDI Bridge"
+        android:textSize="36sp"
+        android:textColor="#22d3ee"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ws://localhost:9999"
+        android:textSize="20sp"
+        android:textColor="#94a3b8"
+        android:layout_marginTop="12dp"/>
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="시작 중..."
+        android:textSize="14sp"
+        android:textColor="#64748b"
+        android:gravity="center"
+        android:layout_marginTop="24dp"/>
+
+</LinearLayout>
