@@ -214,6 +214,7 @@ class MidiBridgeService : Service() {
             while (!Thread.currentThread().isInterrupted) {
                 val len = conn.bulkTransfer(ep, buf, buf.size, 100)
                 if (len > 0) {
+                    Log.d(TAG, "USB read $len bytes: ${buf.take(len).map { it.toInt() and 0xFF }}")
                     var i = 0
                     while (i + 3 < len) {
                         val cin = buf[i].toInt() and 0x0F
@@ -267,13 +268,22 @@ class MidiBridgeService : Service() {
 }
 
 private class MidiWsServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
-    override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {}
-    override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {}
+    private val TAG = "MidiBridge"
+    override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
+        Log.i(TAG, "WS client connected: ${conn.remoteSocketAddress}")
+    }
+    override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+        Log.i(TAG, "WS client disconnected")
+    }
     override fun onMessage(conn: WebSocket, message: String) {}
-    override fun onError(conn: WebSocket?, ex: Exception) {}
+    override fun onError(conn: WebSocket?, ex: Exception) {
+        Log.e(TAG, "WS error", ex)
+    }
     override fun onStart() {}
 
     fun broadcastMidi(data: ByteArray) {
-        if (connections.isNotEmpty()) broadcast(data)
+        val count = connections.size
+        Log.d(TAG, "MIDI broadcast to $count clients: ${data.map { it.toInt() and 0xFF }}")
+        if (count > 0) broadcast(data)
     }
 }
