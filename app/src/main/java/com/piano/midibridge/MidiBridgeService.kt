@@ -23,7 +23,9 @@ import androidx.core.app.NotificationCompat
 import org.java_websocket.WebSocket
 import org.java_websocket.handshake.ClientHandshake
 import org.java_websocket.server.WebSocketServer
+import java.io.File
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 
 class MidiBridgeService : Service() {
 
@@ -35,6 +37,7 @@ class MidiBridgeService : Service() {
     private var wsServer: MidiWsServer? = null
     private var usbConnection: UsbDeviceConnection? = null
     private var readThread: Thread? = null
+    private var httpThread: Thread? = null
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -78,6 +81,9 @@ class MidiBridgeService : Service() {
         }
         Log.i(TAG, "WebSocket server started on port 9999")
 
+        startHttpServer()
+        Log.i(TAG, "HTTP server started on port 8080")
+
         val filter = IntentFilter().apply {
             addAction(ACTION_USB_PERMISSION)
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
@@ -89,7 +95,45 @@ class MidiBridgeService : Service() {
             registerReceiver(usbReceiver, filter)
         }
 
+        updateNotification("Brave에서 http://localhost:8080 접속")
         scanDevices()
+    }
+
+    private fun startHttpServer() {
+        val htmlFile = File(getExternalFilesDir(null), "sadari.html")
+        httpThread = Thread {
+            val ss = ServerSocket().apply {
+                reuseAddress = true
+                bind(InetSocketAddress(8080))
+            }
+            while (!Thread.currentThread().isInterrupted) {
+                try {
+                    val client = ss.accept()
+                    Thread {
+                        try {
+                            val br = client.getInputStream().bufferedReader()
+                            br.readLine() // request line (ignored)
+                            while (br.readLine()?.isNotEmpty() == true) {} // drain headers
+                            val out = client.getOutputStream()
+                            if (htmlFile.exists()) {
+                                val bytes = htmlFile.readBytes()
+                                out.write("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: ${bytes.size}\r\n\r\n".toByteArray())
+                                out.write(bytes)
+                            } else {
+                                val msg = "sadari.html not found. Push it with:\nadb push sadari.html /sdcard/Android/data/com.piano.midibridge/files/sadari.html".toByteArray()
+                                out.write("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: ${msg.size}\r\n\r\n".toByteArray())
+                                out.write(msg)
+                            }
+                            out.flush()
+                            client.close()
+                        } catch (_: Exception) {}
+                    }.also { it.isDaemon = true; it.start() }
+                } catch (e: Exception) {
+                    if (!Thread.currentThread().isInterrupted) Log.e(TAG, "HTTP accept error", e)
+                }
+            }
+            runCatching { ss.close() }
+        }.also { it.isDaemon = true; it.start() }
     }
 
     private fun scanDevices() {
@@ -192,6 +236,8 @@ class MidiBridgeService : Service() {
 
     override fun onDestroy() {
         stopReading()
+        httpThread?.interrupt()
+        httpThread = null
         runCatching { wsServer?.stop(1000) }
         runCatching { unregisterReceiver(usbReceiver) }
         super.onDestroy()
